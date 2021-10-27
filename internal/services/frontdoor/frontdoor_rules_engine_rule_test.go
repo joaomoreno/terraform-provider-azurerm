@@ -32,6 +32,9 @@ provider "azurerm" {
   features {}
 }
 
+data "azurerm_client_config" "current" {
+}
+
 resource "azurerm_resource_group" "test" {
   name     = "testaccRG-%[1]d"
   location = "%[2]s"
@@ -136,13 +139,32 @@ resource "azurerm_frontdoor" "test" {
 func (FrontDoorResource) associate(data acceptance.TestData) string {
 	return fmt.Sprintf(`
 
-	resource "null_resource" "test_association" {
+	# before the rules engine config can be deleted it needs to be unassociated
+	resource "null_resource" "delete_association" {
 		triggers = {
-		  always_run = timestamp()
+			frontdoor =	azurerm_frontdoor.test.name
+			resourcegroup = azurerm_resource_group.test.name
+			subscriptionid = data.azurerm_client_config.current.subscription_id
 		}
 
 		provisioner "local-exec" {
-		  command = "az account set --subscription $ARM_SUBSCRIPTION_ID && az config set extension.use_dynamic_install=yes_without_prompt && az network front-door routing-rule update --front-door-name ${azurerm_frontdoor.test.name} --resource-group ${azurerm_resource_group.test.name} --name test-routing-rule --rules-engine ${azurerm_frontdoor_rules_engine.test.name}"
+		  when = destroy
+		  command = "az account set --subscription ${self.triggers.subscriptionid} && az config set extension.use_dynamic_install=yes_without_prompt && az network front-door routing-rule update --front-door-name ${self.triggers.frontdoor} --resource-group ${self.triggers.resourcegroup} --name test-routing-rule --remove rulesEngine"
+		}
+	
+		depends_on = [
+		  azurerm_frontdoor_rules_engine.test
+		]
+	  }
+
+	# the rules engine configuration needs to be associated via azurecli today
+	resource "null_resource" "test_association" {
+		triggers = {
+		  rulesengine = azurerm_frontdoor_rules_engine.test.name # only a new name will trigger a new execution
+		}
+
+		provisioner "local-exec" {
+		  command = "az account set --subscription $ARM_SUBSCRIPTION_ID && az config set extension.use_dynamic_install=yes_without_prompt && az network front-door routing-rule update --front-door-name ${azurerm_frontdoor.test.name} --resource-group ${azurerm_resource_group.test.name} --name test-routing-rule --rules-engine ${self.triggers.rulesengine}"
 		}
 	
 		depends_on = [
