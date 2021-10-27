@@ -2,6 +2,7 @@ package frontdoor_test
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
@@ -14,7 +15,8 @@ func TestAccFrontDoorRulesEngine_complete(t *testing.T) {
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config: r.deploy(data),
+			Config:      r.deploy(data),
+			ExpectError: regexp.MustCompile(`"null_resource.test_association must be replaced`),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
@@ -138,6 +140,7 @@ func (FrontDoorResource) associate(data acceptance.TestData) string {
 		triggers = {
 		  always_run = timestamp()
 		}
+
 		provisioner "local-exec" {
 		  command = "az account set --subscription $ARM_SUBSCRIPTION_ID && az config set extension.use_dynamic_install=yes_without_prompt && az network front-door routing-rule update --front-door-name ${azurerm_frontdoor.test.name} --resource-group ${azurerm_resource_group.test.name} --name test-routing-rule --rules-engine ${azurerm_frontdoor_rules_engine.test.name}"
 		}
