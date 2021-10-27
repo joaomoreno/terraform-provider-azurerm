@@ -2,7 +2,6 @@ package frontdoor_test
 
 import (
 	"fmt"
-	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-provider-azurerm/internal/acceptance"
@@ -15,8 +14,7 @@ func TestAccFrontDoorRulesEngine_complete(t *testing.T) {
 
 	data.ResourceTest(t, r, []acceptance.TestStep{
 		{
-			Config:      r.deploy(data),
-			ExpectError: regexp.MustCompile(`"null_resource.test_association must be replaced`),
+			Config: r.deploy(data),
 			Check: acceptance.ComposeTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
 			),
